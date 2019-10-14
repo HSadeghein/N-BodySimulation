@@ -1,0 +1,54 @@
+﻿#pragma kernel CSMain
+
+
+
+const float Softening = 3e4f;
+#define Softening2  Softening * Softening
+
+struct Particle {
+	float3 position;
+	float3 velocity;
+};
+	RWStructuredBuffer<Particle> particleBuffer;
+
+	static float G = 6.67300e-11f;
+	static float DefaultMass = 40000.0f;
+	static float GMM = G * DefaultMass * DefaultMass;
+
+	float _deltaTime;
+	int _numofParticles;
+
+	[numthreads(256, 1, 1)]
+	void CSMain(uint3 id : SV_DispatchThreadID)
+	{
+		int j = id.x;
+
+		float3 position = particleBuffer[j].position;
+		float3 velocity = particleBuffer[j].velocity;
+		float3 A = float3(0, 0, 0);
+		//float DefaultMass = 40000.0f;
+		[loop]
+		for (int i = 0; i < _numofParticles; i++)
+		{
+			if (i != j)
+			{
+				float3 delta = particleBuffer[i].position - position;
+				float l = length(delta);
+				//DefaultMass += 0.1f;
+				//float GMM = G * DefaultMass * DefaultMass;
+				float f = (GMM) / (l * l + Softening2);
+				A += f * normalize(delta);
+
+			}
+
+		}
+		velocity += A * _deltaTime;
+		position += velocity * _deltaTime;
+
+		if (j < _numofParticles)
+		{
+			particleBuffer[j].velocity = velocity;
+			particleBuffer[j].position = position;
+
+		}
+	}
